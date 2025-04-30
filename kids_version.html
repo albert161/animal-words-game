@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>תפוס את החיה! - משחק לימוד אנגלית</title>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #4299e1, #9f7aea);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .game-container {
+            text-align: center;
+            color: white;
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+        }
+
+        .score-display {
+            font-size: 28px;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .target-section {
+            background: linear-gradient(135deg, #4299e1, #9f7aea);
+            padding: 20px;
+            border-radius: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .target-container {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            margin: 0 auto;
+        }
+
+        .target-emoji {
+            width: 100px;
+            height: 100px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 60px;
+            margin: 0 auto;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .target-instruction {
+            margin-top: 15px;
+            font-size: 24px;
+            color: white;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .game-area {
+            width: 600px;
+            height: 400px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 16px;
+            position: relative;
+            overflow: hidden;
+            margin: 20px auto;
+            touch-action: none; /* Prevents default touch behaviors */
+        }
+
+        .player {
+            width: 60px;
+            height: 60px;
+            background-image: url('Dylen.jpg');
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            position: absolute;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 1000;
+            border-radius: 50%;
+        }
+
+        .emoji {
+            position: absolute;
+            font-size: 32px;
+            cursor: pointer;
+            user-select: none;
+            transition: transform 0.2s;
+            background: white;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .emoji.target {
+            transform: scale(1.2);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+        }
+
+        .emoji.caught {
+            animation: flip 1s forwards;
+        }
+
+        .emoji.word {
+            font-size: 16px;
+            font-weight: bold;
+            background: #4CAF50;
+            color: white;
+        }
+
+        .emoji.wrong {
+            animation: shake 0.5s ease-in-out;
+            background: #ff4444;
+        }
+
+        @keyframes flip {
+            0% { transform: rotateY(0); }
+            50% { transform: rotateY(90deg) scale(1.2); }
+            51% { background: #4CAF50; color: white; }
+            100% { transform: rotateY(0) scale(1.2); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        /* Make the game responsive for tablets */
+        @media (max-width: 768px) {
+            .game-container {
+                padding: 10px;
+            }
+            .game-area {
+                width: 100%;
+                height: 60vh;
+                max-width: 600px;
+            }
+            .emoji {
+                font-size: 28px;
+                width: 42px;
+                height: 42px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="target-section">
+            <div class="score-display">ניקוד: <span id="score">0</span></div>
+            <div class="target-emoji" id="targetEmoji"></div>
+            <div class="target-instruction" id="targetInstruction"></div>
+        </div>
+        <div class="game-area" id="gameArea">
+            <div class="player" id="player"></div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize speech synthesis
+        const speechSynthesis = window.speechSynthesis;
+        let speechUtterance = new SpeechSynthesisUtterance();
+        speechUtterance.lang = 'en-US';
+        speechUtterance.rate = 0.8;
+        speechUtterance.volume = 1;
+
+        const words = [
+            { word: 'Dog', translation: 'כלב', emoji: '🐕' },
+            { word: 'Cat', translation: 'חתול', emoji: '🐱' },
+            { word: 'Bird', translation: 'ציפור', emoji: '🦜' },
+            { word: 'Fish', translation: 'דג', emoji: '🐠' },
+            { word: 'Horse', translation: 'סוס', emoji: '🐎' },
+            { word: 'Rabbit', translation: 'ארנב', emoji: '🐰' },
+            { word: 'Lion', translation: 'אריה', emoji: '🦁' },
+            { word: 'Elephant', translation: 'פיל', emoji: '🐘' },
+            { word: 'Monkey', translation: 'קוף', emoji: '🐒' },
+            { word: 'Giraffe', translation: 'ג׳ירפה', emoji: '🦒' }
+        ];
+
+        let currentWordIndex = 0;
+        let score = 0;
+        let emojiElements = [];
+        
+        const gameArea = document.getElementById('gameArea');
+        const player = document.getElementById('player');
+        const scoreElement = document.getElementById('score');
+        const targetEmoji = document.getElementById('targetEmoji');
+        const targetInstruction = document.getElementById('targetInstruction');
+
+        // Function to speak the word
+        function speakWord(word) {
+            speechUtterance.text = word;
+            speechSynthesis.cancel();
+            speechSynthesis.speak(speechUtterance);
+        }
+
+        function handlePointerMove(e) {
+            let x, y;
+            
+            // Check if it's a touch event
+            if (e.type.startsWith('touch')) {
+                e.preventDefault(); // Prevent scrolling
+                const touch = e.touches[0];
+                const rect = gameArea.getBoundingClientRect();
+                x = touch.clientX - rect.left;
+                y = touch.clientY - rect.top;
+            } else {
+                // Mouse event
+                const rect = gameArea.getBoundingClientRect();
+                x = e.clientX - rect.left;
+                y = e.clientY - rect.top;
+            }
+
+            // Update player position
+            player.style.left = x + 'px';
+            player.style.top = y + 'px';
+
+            // Check for collisions
+            emojiElements.forEach((emojiObj, index) => {
+                if (emojiObj.caught) return;
+
+                const emojiRect = emojiObj.element.getBoundingClientRect();
+                const emojiX = emojiRect.left - gameArea.getBoundingClientRect().left + emojiRect.width / 2;
+                const emojiY = emojiRect.top - gameArea.getBoundingClientRect().top + emojiRect.height / 2;
+
+                if (checkCollision(x, y, emojiX, emojiY, 35)) {
+                    emojiObj.caught = true;
+
+                    if (index === currentWordIndex) {
+                        // Correct emoji caught
+                        score += 100;
+                        emojiObj.caughtCorrectly = true;
+                        emojiObj.element.classList.add('caught');
+                        setTimeout(() => {
+                            emojiObj.element.classList.add('word');
+                            emojiObj.element.textContent = emojiObj.word;
+                        }, 500);
+                        triggerConfetti();
+                        speakWord(emojiObj.word);
+                        
+                        setTimeout(() => {
+                            currentWordIndex = (currentWordIndex + 1) % words.length;
+                            updateCurrentWord();
+                            createEmojis();
+                        }, 2000);
+                    } else {
+                        // Wrong emoji caught
+                        score -= 50;
+                        emojiObj.element.classList.add('wrong');
+                        setTimeout(() => {
+                            emojiObj.caught = false;
+                            emojiObj.element.classList.remove('wrong');
+                        }, 500);
+                    }
+                    scoreElement.textContent = score;
+                }
+            });
+        }
+
+        function checkCollision(x1, y1, x2, y2, radius) {
+            const dx = x1 - x2;
+            const dy = y1 - y2;
+            return Math.sqrt(dx * dx + dy * dy) < radius;
+        }
+
+        function updateCurrentWord() {
+            targetEmoji.textContent = words[currentWordIndex].emoji;
+            targetInstruction.textContent = `מצא את המילה: ${words[currentWordIndex].word}`;
+            speakWord(words[currentWordIndex].word);
+        }
+
+        function triggerConfetti() {
+            confetti({
+                particleCount: 100,
+                spread: 70,
+                origin: { y: 0.6 }
+            });
+        }
+
+        // Modify the emoji hover/touch behavior
+        function createEmojis() {
+            emojiElements.forEach(el => el.remove());
+            emojiElements = [];
+
+            // Calculate safe boundaries
+            const safeWidth = gameArea.offsetWidth - 60;
+            const safeHeight = gameArea.offsetHeight - 60;
+
+            words.forEach((wordData, index) => {
+                const emojiEl = document.createElement('div');
+                emojiEl.className = `emoji ${index === currentWordIndex ? 'target' : ''}`;
+                emojiEl.textContent = wordData.emoji;
+                
+                // Ensure initial position is within safe boundaries
+                emojiEl.style.left = (Math.random() * (safeWidth - 48) + 30) + 'px';
+                emojiEl.style.top = (Math.random() * (safeHeight - 48) + 30) + 'px';
+                
+                // Add both hover and touch events for pronunciation
+                function handleInteraction() {
+                    if (index === currentWordIndex || 
+                        (emojiElements[index]?.caught && emojiElements[index]?.caughtCorrectly)) {
+                        speakWord(wordData.word);
+                    }
+                }
+                
+                emojiEl.addEventListener('mouseover', handleInteraction);
+                emojiEl.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    handleInteraction();
+                });
+
+                const speed = {
+                    x: (Math.random() - 0.5) * 4,
+                    y: (Math.random() - 0.5) * 4
+                };
+
+                emojiElements.push({ 
+                    element: emojiEl, 
+                    speed, 
+                    caught: false,
+                    caughtCorrectly: false,
+                    word: wordData.word,
+                    emoji: wordData.emoji
+                });
+                gameArea.appendChild(emojiEl);
+            });
+        }
+
+        // Add the updateEmojis function back
+        function updateEmojis() {
+            const gameRect = gameArea.getBoundingClientRect();
+            const padding = 20;
+
+            emojiElements.forEach(({ element, speed, caught }) => {
+                if (caught) return;
+
+                let x = parseFloat(element.style.left) + speed.x;
+                let y = parseFloat(element.style.top) + speed.y;
+
+                // Ensure the emoji stays within the game area boundaries
+                if (x <= padding || x >= gameRect.width - element.offsetWidth - padding) {
+                    speed.x *= -1;
+                    x = x <= padding ? padding : gameRect.width - element.offsetWidth - padding;
+                }
+                if (y <= padding || y >= gameRect.height - element.offsetHeight - padding) {
+                    speed.y *= -1;
+                    y = y <= padding ? padding : gameRect.height - element.offsetHeight - padding;
+                }
+
+                element.style.left = x + 'px';
+                element.style.top = y + 'px';
+            });
+
+            requestAnimationFrame(updateEmojis);
+        }
+
+        // Initialize the game
+        updateCurrentWord();
+        createEmojis();
+        updateEmojis(); // Start the animation
+
+        // Add both mouse and touch event listeners
+        gameArea.addEventListener('mousemove', handlePointerMove);
+        gameArea.addEventListener('touchmove', handlePointerMove, { passive: false });
+        gameArea.addEventListener('touchstart', handlePointerMove, { passive: false });
+    </script>
+</body>
+</html> 
