@@ -81,7 +81,7 @@
         .player {
             width: 60px;
             height: 60px;
-            background-image: url('Dylen.JPG');
+            background-image: url('./Dylen.JPG');
             background-size: cover;
             background-repeat: no-repeat;
             background-position: center;
@@ -205,11 +205,24 @@
         const targetEmoji = document.getElementById('targetEmoji');
         const targetInstruction = document.getElementById('targetInstruction');
 
-        // Function to speak the word
+        // Function to speak the word with iOS compatibility
         function speakWord(word) {
-            speechUtterance.text = word;
+            // Cancel any ongoing speech
             speechSynthesis.cancel();
-            speechSynthesis.speak(speechUtterance);
+            
+            // Create a new utterance for each word
+            const utterance = new SpeechSynthesisUtterance(word);
+            utterance.lang = 'en-US';
+            utterance.rate = 0.8;
+            utterance.volume = 1;
+            
+            // Add error handling
+            utterance.onerror = function(event) {
+                console.error('Speech synthesis error:', event);
+            };
+            
+            // Speak the word
+            speechSynthesis.speak(utterance);
         }
 
         function handlePointerMove(e) {
